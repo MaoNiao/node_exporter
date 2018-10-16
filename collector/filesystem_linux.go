@@ -154,6 +154,7 @@ func mountPointDetails() ([]filesystemLabels, error) {
 			mountPoint: parts[1],
 			fsType:     parts[2],
 			options:    parts[3],
+			newAttr:    parts[4],
 		})
 	}
 	return filesystems, scanner.Err()

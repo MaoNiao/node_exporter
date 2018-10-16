@@ -40,6 +40,8 @@ var (
 	).Default(defIgnoredFSTypes).String()
 
 	filesystemLabelNames = []string{"device", "mountpoint", "fstype"}
+
+	filesystemLabelNamesNew = []string{"device", "mountpoint", "fstype", "newAttr"}
 )
 
 type filesystemCollector struct {
@@ -51,7 +53,7 @@ type filesystemCollector struct {
 }
 
 type filesystemLabels struct {
-	device, mountPoint, fsType, options string
+	device, mountPoint, fsType, options, newAttr string
 }
 
 type filesystemStats struct {
@@ -74,19 +76,19 @@ func NewFilesystemCollector() (Collector, error) {
 	sizeDesc := prometheus.NewDesc(
 		prometheus.BuildFQName(namespace, subsystem, "size_bytes"),
 		"Filesystem size in bytes.",
-		filesystemLabelNames, nil,
+		filesystemLabelNamesNew, nil,
 	)
 
 	freeDesc := prometheus.NewDesc(
 		prometheus.BuildFQName(namespace, subsystem, "free_bytes"),
 		"Filesystem free space in bytes.",
-		filesystemLabelNames, nil,
+		filesystemLabelNamesNew, nil,
 	)
 
 	availDesc := prometheus.NewDesc(
 		prometheus.BuildFQName(namespace, subsystem, "avail_bytes"),
 		"Filesystem space available to non-root users in bytes.",
-		filesystemLabelNames, nil,
+		filesystemLabelNamesNew, nil,
 	)
 
 	filesDesc := prometheus.NewDesc(
@@ -149,15 +151,15 @@ func (c *filesystemCollector) Update(ch chan<- prometheus.Metric) error {
 
 		ch <- prometheus.MustNewConstMetric(
 			c.sizeDesc, prometheus.GaugeValue,
-			s.size, s.labels.device, s.labels.mountPoint, s.labels.fsType,
+			s.size, s.labels.device, s.labels.mountPoint, s.labels.fsType, s.labels.newAttr
 		)
 		ch <- prometheus.MustNewConstMetric(
 			c.freeDesc, prometheus.GaugeValue,
-			s.free, s.labels.device, s.labels.mountPoint, s.labels.fsType,
+			s.free, s.labels.device, s.labels.mountPoint, s.labels.fsType, s.labels.newAttr
 		)
 		ch <- prometheus.MustNewConstMetric(
 			c.availDesc, prometheus.GaugeValue,
-			s.avail, s.labels.device, s.labels.mountPoint, s.labels.fsType,
+			s.avail, s.labels.device, s.labels.mountPoint, s.labels.fsType, s.labels.newAttr
 		)
 		ch <- prometheus.MustNewConstMetric(
 			c.filesDesc, prometheus.GaugeValue,
