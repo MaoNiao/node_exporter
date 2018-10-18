@@ -16,9 +16,7 @@ package collector
 
 import (
 	"context"
-	"bytes"
 	"fmt"
-	"strconv"
 	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/client"
 	"github.com/prometheus/common/log"

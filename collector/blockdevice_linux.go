@@ -16,23 +16,9 @@
 package collector
 
 import (
-	"io/ioutil"
-	"bytes"
-	//"bufio"
-	//"os"
-	"strings"
-	//"sync"
 	"syscall"
-	"time"
 	"github.com/prometheus/common/log"
-	"github.com/kitt1987/superblock/pkg/xfs"
-)
-
-const (
-	defIgnoredMountPoints = "^/(dev|proc|sys|var/lib/docker/.+)($|/)"
-	defIgnoredFSTypes     = "^(autofs|binfmt_misc|cgroup|configfs|debugfs|devpts|devtmpfs|fusectl|hugetlbfs|mqueue|nsfs|overlay|proc|procfs|pstore|rpc_pipefs|securityfs|sysfs|tracefs)$"
-	readOnly              = 0x1 // ST_RDONLY
-	mountTimeout          = 30 * time.Second
+	//"github.com/kitt1987/superblock/pkg/xfs"
 )
 
 // GetStats returns blockdevice stats.
@@ -51,18 +37,15 @@ func (c *blockdeviceCollector) GetBlockDeviceStats() ([]blockdeviceStats, error)
 			continue
 		}
 
-		blockdevices := []blockdeviceLabels{}
-		blockdevices = append(blockdevices, blockdeviceLabels{
-			containerId:    containerfs.ContainerId,
-			containerName:  containerfs.ContainerName,
-			containerImage: containerfs.ContainerImage,
-			pid:            containerfs.MountPoint,
-			podName:        containerfs.Labels["io.kubernetes.pod.name"],
-			namespace:      containerfs.Labels["io.kubernetes.pod.namespace"],
-		}
-
 		stats = append(stats, blockdeviceStats{
-			labels:    blockdevices,
+			labels:    blockdeviceLabels{
+				podName:        containerfs.Labels["io.kubernetes.pod.name"],
+				namespace:      containerfs.Labels["io.kubernetes.pod.namespace"],
+				containerId:    containerfs.ContainerId,
+				containerName:  containerfs.ContainerName,
+				containerImage: containerfs.ContainerImage,
+				pid:            containerfs.MountPoint,
+			},
 			size:      float64(buf.Blocks) * float64(buf.Bsize),
 			free:      float64(buf.Bfree) * float64(buf.Bsize),
 			avail:     float64(buf.Bavail) * float64(buf.Bsize),
@@ -73,46 +56,46 @@ func (c *blockdeviceCollector) GetBlockDeviceStats() ([]blockdeviceStats, error)
 
 
 //原方案，获取/sys/block/{device}/dm/name设备名，/dev/{device}从superblock的钱512字节中获取totalSize和avialSiza
-func readBlockDeviceDir() ([]blockdeviceLabels, error) {
-	devlist, err := ioutil.ReadDir("/sys/block")
-	if err != nil {
-		log.Debugf("/sys/block read failed.  %s", err)
-		return nil, err
-	}
+// func readBlockDeviceDir() ([]blockdeviceLabels, error) {
+// 	devlist, err := ioutil.ReadDir("/sys/block")
+// 	if err != nil {
+// 		log.Debugf("/sys/block read failed.  %s", err)
+// 		return nil, err
+// 	}
 
-	blockdevices := []blockdeviceLabels{}
-	for _, devfile := range devlist {
-		var devname string = devfile.Name()
-		//每次声明是不是不合适？
-		//获取dm设备名
-		if strings.Contains(devfile.Name(), "dm") {
-			var buf bytes.Buffer
-			buf.WriteString("/sys/block/")
-			buf.WriteString(devfile.Name())
-			buf.WriteString("/dm/name")
-			devname, err = ioutil.ReadFile(buf.String())
-			if err != nil {
-				log.Debugf("dm device name read failed :%q. %s", devname,err)
-				continue
-			}
-		}
+// 	blockdevices := []blockdeviceLabels{}
+// 	for _, devfile := range devlist {
+// 		var devname string = devfile.Name()
+// 		//每次声明是不是不合适？
+// 		//获取dm设备名
+// 		if strings.Contains(devfile.Name(), "dm") {
+// 			var buf bytes.Buffer
+// 			buf.WriteString("/sys/block/")
+// 			buf.WriteString(devfile.Name())
+// 			buf.WriteString("/dm/name")
+// 			devname, err = string(ioutil.ReadFile(buf.String())[:])
+// 			if err != nil {
+// 				log.Debugf("dm device name read failed :%q. %s", devname,err)
+// 				continue
+// 			}
+// 		}
 
-		var sbbuf bytes.Buffer
-		sbbuf.WriteString("/dev/")
-		sbbuf.WriteString(devfile.Name())
-		sbdev := sbbuf.String()
-		sb, err := xfs.GetSuperBlock(sbdev)
-		if err != nil {
-			log.Debugf("/dev path, device ID read failed :%q. %s", sb, err)
-			continue
-		}
+// 		var sbbuf bytes.Buffer
+// 		sbbuf.WriteString("/dev/")
+// 		sbbuf.WriteString(devfile.Name())
+// 		sbdev := sbbuf.String()
+// 		sb, err := xfs.GetSuperBlock(sbdev)
+// 		if err != nil {
+// 			log.Debugf("/dev path, device ID read failed :%q. %s", sb, err)
+// 			continue
+// 		}
 
-		blockdevices = append(blockdevices, blockdeviceLabels{
-			deviceId:   sbdev,
-			deviceName: devname,
-			totalSize:  uint64(sb.SB_blocksize) * uint64(sb.SB_dblocks),
-			availSize:  uint64(sb.SB_blocksize) * uint64(sb.SB_fdblocks),
-		})
-	}
-	return blockdevices, nil
-}
+// 		blockdevices = append(blockdevices, blockdeviceLabels{
+// 			deviceId:   sbdev,
+// 			deviceName: devname,
+// 			totalSize:  uint64(sb.SB_blocksize) * uint64(sb.SB_dblocks),
+// 			availSize:  uint64(sb.SB_blocksize) * uint64(sb.SB_fdblocks),
+// 		})
+// 	}
+// 	return blockdevices, nil
+// }
