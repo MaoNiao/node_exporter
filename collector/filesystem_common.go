@@ -151,15 +151,15 @@ func (c *filesystemCollector) Update(ch chan<- prometheus.Metric) error {
 
 		ch <- prometheus.MustNewConstMetric(
 			c.sizeDesc, prometheus.GaugeValue,
-			s.size, s.labels.device, s.labels.mountPoint, s.labels.fsType, s.labels.newAttr
+			s.size, s.labels.device, s.labels.mountPoint, s.labels.fsType, s.labels.newAttr,
 		)
 		ch <- prometheus.MustNewConstMetric(
 			c.freeDesc, prometheus.GaugeValue,
-			s.free, s.labels.device, s.labels.mountPoint, s.labels.fsType, s.labels.newAttr
+			s.free, s.labels.device, s.labels.mountPoint, s.labels.fsType, s.labels.newAttr,
 		)
 		ch <- prometheus.MustNewConstMetric(
 			c.availDesc, prometheus.GaugeValue,
-			s.avail, s.labels.device, s.labels.mountPoint, s.labels.fsType, s.labels.newAttr
+			s.avail, s.labels.device, s.labels.mountPoint, s.labels.fsType, s.labels.newAttr,
 		)
 		ch <- prometheus.MustNewConstMetric(
 			c.filesDesc, prometheus.GaugeValue,

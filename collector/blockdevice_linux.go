@@ -17,13 +17,13 @@ package collector
 
 import (
 	"io/ioutil"
-	"bufio"
-	"os"
+	"bytes"
+	//"bufio"
+	//"os"
 	"strings"
-	"sync"
+	//"sync"
 	"syscall"
 	"time"
-	"ioutil"
 	"github.com/prometheus/common/log"
 	"github.com/kitt1987/superblock/pkg/xfs"
 )
@@ -37,35 +37,48 @@ const (
 
 // GetStats returns blockdevice stats.
 func (c *blockdeviceCollector) GetBlockDeviceStats() ([]blockdeviceStats, error) {
-	rbdd, err := readBlockDeviceDir()
+	//rbdd, err := readBlockDeviceDir()
+	ccfs, err := GetAllContainerFS()
 	if err != nil {
 		return nil, err
 	}
 	stats := []blockdeviceStats{}
-	for _, labels := range rbdd {
+	for _, containerfs := range ccfs {
 		buf := new(syscall.Statfs_t)
-		err = syscall.Statfs(rootfsFilePath(labels.deviceId), buf)
+		err = syscall.Statfs(rootfsFilePath(containerfs.MountPoint), buf)
 		if err != nil {
-			log.Debugf("Error on statfs() system call for %q: %s", rootfsFilePath(labels.deviceId), err)
+			log.Debugf("Error on statfs() system call for %q: %s", rootfsFilePath(containerfs.MountPoint), err)
 			continue
 		}
 
+		blockdevices := []blockdeviceLabels{}
+		blockdevices = append(blockdevices, blockdeviceLabels{
+			containerId:    containerfs.ContainerId,
+			containerName:  containerfs.ContainerName,
+			containerImage: containerfs.ContainerImage,
+			pid:            containerfs.MountPoint,
+			podName:        containerfs.Labels["io.kubernetes.pod.name"],
+			namespace:      containerfs.Labels["io.kubernetes.pod.namespace"],
+		}
+
 		stats = append(stats, blockdeviceStats{
-			labels:    labels,
+			labels:    blockdevices,
 			size:      float64(buf.Blocks) * float64(buf.Bsize),
+			free:      float64(buf.Bfree) * float64(buf.Bsize),
 			avail:     float64(buf.Bavail) * float64(buf.Bsize),
 		})
 	}
 	return stats, nil
 }
 
+
+//原方案，获取/sys/block/{device}/dm/name设备名，/dev/{device}从superblock的钱512字节中获取totalSize和avialSiza
 func readBlockDeviceDir() ([]blockdeviceLabels, error) {
 	devlist, err := ioutil.ReadDir("/sys/block")
 	if err != nil {
 		log.Debugf("/sys/block read failed.  %s", err)
 		return nil, err
 	}
-	defer devlist.Close()
 
 	blockdevices := []blockdeviceLabels{}
 	for _, devfile := range devlist {
@@ -77,7 +90,7 @@ func readBlockDeviceDir() ([]blockdeviceLabels, error) {
 			buf.WriteString("/sys/block/")
 			buf.WriteString(devfile.Name())
 			buf.WriteString("/dm/name")
-			devname, err = ioutil.ReadFile(buf.String()) 
+			devname, err = ioutil.ReadFile(buf.String())
 			if err != nil {
 				log.Debugf("dm device name read failed :%q. %s", devname,err)
 				continue

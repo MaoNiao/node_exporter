@@ -38,22 +38,23 @@ var (
 	// 	"Regexp of filesystem types to ignore for blockdevice collector.",
 	// ).Default(defIgnoredFSTypes).String()
 
-	blockdeviceLabelNames = []string{"deviceId", "deviceName", "totalSize", "availSize"}
+	blockdeviceLabelNames = []string{"podName", "namespace", "containerId", "containerName", "containerImage", "pid"}
 )
 
 type blockdeviceCollector struct {
 	// ignoredMountPointsPattern     *regexp.Regexp
 	// ignoredFSTypesPattern         *regexp.Regexp
-	sizeDesc, availDesc *prometheus.Desc
+	sizeDesc, freeDesc, availDesc *prometheus.Desc
 }
 
 type blockdeviceLabels struct {
-	deviceId, deviceName, totalSize, availSize string
+	//deviceId, deviceName, totalSize, availSize string
+	podName, namespace, containerId, containerName, containerImage, pid string
 }
 
 type blockdeviceStats struct {
 	labels            blockdeviceLabels
-	size, avail       float64
+	size, free, avail       float64
 }
 
 func init() {
@@ -72,6 +73,12 @@ func NewBlockdeviceCollector() (Collector, error) {
 		blockdeviceLabelNames, nil,
 	)
 
+	freeDesc := prometheus.NewDesc(
+		prometheus.BuildFQName(namespace, subsystem, "free_bytes"),
+		"Filesystem free space in bytes.",
+		blockdeviceLabelNames, nil,
+	)
+
 	availDesc := prometheus.NewDesc(
 		prometheus.BuildFQName(namespace, subsystem, "avail_bytes"),
 		"Filesystem space available to non-root users in bytes.",
@@ -82,6 +89,7 @@ func NewBlockdeviceCollector() (Collector, error) {
 		// ignoredMountPointsPattern: mountPointPattern,
 		// ignoredFSTypesPattern:     filesystemsTypesPattern,
 		sizeDesc:                  sizeDesc,
+		freeDesc:                  freeDesc,
 		availDesc:                 availDesc,
 	}, nil
 }
@@ -109,11 +117,17 @@ func (c *blockdeviceCollector) Update(ch chan<- prometheus.Metric) error {
 
 		ch <- prometheus.MustNewConstMetric(
 			c.sizeDesc, prometheus.GaugeValue,
-			s.size, s.labels.deviceId, s.labels.deviceName, s.labels.totalSize, s.labels.availSize,
+			s.size, s.labels.podName, s.labels.namespace, s.labels.containerId, s.labels.containerName, s.labels.containerImage, s.labels.pid,
 		)
+
+		ch <- prometheus.MustNewConstMetric(
+			c.freeDesc, prometheus.GaugeValue,
+			s.free, s.labels.podName, s.labels.namespace, s.labels.containerId, s.labels.containerName, s.labels.containerImage, s.labels.pid,
+		)
+
 		ch <- prometheus.MustNewConstMetric(
 			c.availDesc, prometheus.GaugeValue,
-			s.avail, s.labels.deviceId, s.labels.deviceName, s.labels.totalSize, s.labels.availSize,
+			s.avail, s.labels.podName, s.labels.namespace, s.labels.containerId, s.labels.containerName, s.labels.containerImage, s.labels.pid,
 		)
 
 	}
