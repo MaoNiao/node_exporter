@@ -19,7 +19,6 @@ import (
 	"sync"
 	"time"
 	//"regexp"
-
 	"github.com/prometheus/client_golang/prometheus"
 	//"gopkg.in/alecthomas/kingpin.v2"
 )
@@ -47,8 +46,8 @@ type blockdeviceCollector struct {
 	// ignoredMountPointsPattern     *regexp.Regexp
 	// ignoredFSTypesPattern         *regexp.Regexp
 	sizeDesc, freeDesc, availDesc *prometheus.Desc
-	containerFs                   ContainerFS
-	stuckCFS                      sync.Mutex{}
+	containerFs                   []ContainerFS
+	stuckCFS                      sync.Mutex
 }
 
 type blockdeviceLabels struct {
@@ -61,27 +60,28 @@ type blockdeviceStats struct {
 	size, free, avail       float64
 }
 
-var stuckGetContainer = &sync.Mutex{}
-
 func init() {
 	registerCollector("blockdevice", defaultEnabled, NewBlockdeviceCollector)
 }
 
 // NewBlockdeviceCollector returns a new Collector exposing blockdevice stats.
 func NewBlockdeviceCollector() (Collector, error) {
-	gacfs := []ContainerFS{}
-	stuckGetContainer.Lock()
-	defer stuckGetContainer.Unlock()
+	c := &blockdeviceCollector{}
+
 	go func(){
 		t := time.NewTimer(time.Second * 10)
 		for {
 			select {
 			case <-t.C:
-				// Do what you need to do
-				gacfs, err = GetAllContainerFS()
+				gacfs, err := GetAllContainerFS()
 				if err != nil {
-					return nil, err
+					// Log errors
+				} else {
+					c.stuckCFS.Lock()
+					c.containerFs = gacfs
+					c.stuckCFS.Unlock()
 				}
+
 				t.Reset(time.Second * 10)
 			}
 		}
@@ -91,32 +91,25 @@ func NewBlockdeviceCollector() (Collector, error) {
 	// mountPointPattern := regexp.MustCompile(*ignoredMountPoints)
 	// filesystemsTypesPattern := regexp.MustCompile(*ignoredFSTypes)
 
-	sizeDesc := prometheus.NewDesc(
+	c.sizeDesc = prometheus.NewDesc(
 		prometheus.BuildFQName(namespace, subsystem, "size_bytes"),
 		"Filesystem size in bytes.",
 		blockdeviceLabelNames, nil,
 	)
 
-	freeDesc := prometheus.NewDesc(
+	c.freeDesc = prometheus.NewDesc(
 		prometheus.BuildFQName(namespace, subsystem, "free_bytes"),
 		"Filesystem free space in bytes.",
 		blockdeviceLabelNames, nil,
 	)
 
-	availDesc := prometheus.NewDesc(
+	c.availDesc = prometheus.NewDesc(
 		prometheus.BuildFQName(namespace, subsystem, "avail_bytes"),
 		"Filesystem space available to non-root users in bytes.",
 		blockdeviceLabelNames, nil,
 	)
 
-	return &blockdeviceCollector{
-		// ignoredMountPointsPattern: mountPointPattern,
-		// ignoredFSTypesPattern:     filesystemsTypesPattern,
-		sizeDesc:                  sizeDesc,
-		freeDesc:                  freeDesc,
-		availDesc:                 availDesc,
-		containerFs:               gacfs,
-	}, nil
+	return c, nil
 }
 
 func (c *blockdeviceCollector) Update(ch chan<- prometheus.Metric) error {

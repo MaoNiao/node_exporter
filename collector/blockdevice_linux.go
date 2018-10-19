@@ -33,7 +33,7 @@ func (c *blockdeviceCollector) GetBlockDeviceStats() ([]blockdeviceStats, error)
 	stats := []blockdeviceStats{}
 	for _, containerfs := range c.containerFs {
 		buf := new(syscall.Statfs_t)
-		err = syscall.Statfs(rootfsFilePath(containerfs.MountPoint), buf)
+		err := syscall.Statfs(rootfsFilePath(containerfs.MountPoint), buf)
 		if err != nil {
 			log.Debugf("Error on statfs() system call for %q: %s", rootfsFilePath(containerfs.MountPoint), err)
 			continue
