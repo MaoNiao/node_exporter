@@ -24,12 +24,14 @@ import (
 // GetStats returns blockdevice stats.
 func (c *blockdeviceCollector) GetBlockDeviceStats() ([]blockdeviceStats, error) {
 	//rbdd, err := readBlockDeviceDir()
-	ccfs, err := GetAllContainerFS()
-	if err != nil {
-		return nil, err
-	}
+	// ccfs, err := GetAllContainerFS()
+	// if err != nil {
+	// 	return nil, err
+	// }
+	c.stuckCFS.Lock()
+	defer c.stuckCFS.Unlock()
 	stats := []blockdeviceStats{}
-	for _, containerfs := range ccfs {
+	for _, containerfs := range c.containerFs {
 		buf := new(syscall.Statfs_t)
 		err = syscall.Statfs(rootfsFilePath(containerfs.MountPoint), buf)
 		if err != nil {

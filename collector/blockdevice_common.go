@@ -16,6 +16,8 @@
 package collector
 
 import (
+	"sync"
+	"time"
 	//"regexp"
 
 	"github.com/prometheus/client_golang/prometheus"
@@ -45,6 +47,8 @@ type blockdeviceCollector struct {
 	// ignoredMountPointsPattern     *regexp.Regexp
 	// ignoredFSTypesPattern         *regexp.Regexp
 	sizeDesc, freeDesc, availDesc *prometheus.Desc
+	containerFs                   ContainerFS
+	stuckCFS                      sync.Mutex{}
 }
 
 type blockdeviceLabels struct {
@@ -57,12 +61,32 @@ type blockdeviceStats struct {
 	size, free, avail       float64
 }
 
+var stuckGetContainer = &sync.Mutex{}
+
 func init() {
 	registerCollector("blockdevice", defaultEnabled, NewBlockdeviceCollector)
 }
 
 // NewBlockdeviceCollector returns a new Collector exposing blockdevice stats.
 func NewBlockdeviceCollector() (Collector, error) {
+	gacfs := []ContainerFS{}
+	stuckGetContainer.Lock()
+	defer stuckGetContainer.Unlock()
+	go func(){
+		t := time.NewTimer(time.Second * 10)
+		for {
+			select {
+			case <-t.C:
+				// Do what you need to do
+				gacfs, err = GetAllContainerFS()
+				if err != nil {
+					return nil, err
+				}
+				t.Reset(time.Second * 10)
+			}
+		}
+	}()
+
 	subsystem := "blockdevice"
 	// mountPointPattern := regexp.MustCompile(*ignoredMountPoints)
 	// filesystemsTypesPattern := regexp.MustCompile(*ignoredFSTypes)
@@ -91,6 +115,7 @@ func NewBlockdeviceCollector() (Collector, error) {
 		sizeDesc:                  sizeDesc,
 		freeDesc:                  freeDesc,
 		availDesc:                 availDesc,
+		containerFs:               gacfs,
 	}, nil
 }
 
