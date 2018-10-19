@@ -16,6 +16,7 @@
 package collector
 
 import (
+	"github.com/prometheus/common/log"
 	"sync"
 	"time"
 	//"regexp"
@@ -46,8 +47,6 @@ type blockdeviceCollector struct {
 	// ignoredMountPointsPattern     *regexp.Regexp
 	// ignoredFSTypesPattern         *regexp.Regexp
 	sizeDesc, freeDesc, availDesc *prometheus.Desc
-	containerFs                   []ContainerFS
-	stuckCFS                      sync.Mutex
 }
 
 type blockdeviceLabels struct {
@@ -60,32 +59,38 @@ type blockdeviceStats struct {
 	size, free, avail       float64
 }
 
+var (
+	containerFsList                   []ContainerFS
+	stuckCFS                      sync.Mutex
+)
+
 func init() {
-	registerCollector("blockdevice", defaultEnabled, NewBlockdeviceCollector)
-}
-
-// NewBlockdeviceCollector returns a new Collector exposing blockdevice stats.
-func NewBlockdeviceCollector() (Collector, error) {
-	c := &blockdeviceCollector{}
-
 	go func(){
-		t := time.NewTimer(time.Second * 10)
+		t := time.NewTimer(0)
 		for {
 			select {
 			case <-t.C:
 				gacfs, err := GetAllContainerFS()
 				if err != nil {
-					// Log errors
+					panic(err)
 				} else {
-					c.stuckCFS.Lock()
-					c.containerFs = gacfs
-					c.stuckCFS.Unlock()
+					stuckCFS.Lock()
+					containerFsList = gacfs
+					stuckCFS.Unlock()
+					log.Infof("%d container fs loaded", len(gacfs))
 				}
 
 				t.Reset(time.Second * 10)
 			}
 		}
 	}()
+
+	registerCollector("blockdevice", defaultEnabled, NewBlockdeviceCollector)
+}
+
+// NewBlockdeviceCollector returns a new Collector exposing blockdevice stats.
+func NewBlockdeviceCollector() (Collector, error) {
+	c := &blockdeviceCollector{}
 
 	subsystem := "blockdevice"
 	// mountPointPattern := regexp.MustCompile(*ignoredMountPoints)

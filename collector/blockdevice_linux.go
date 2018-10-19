@@ -28,14 +28,15 @@ func (c *blockdeviceCollector) GetBlockDeviceStats() ([]blockdeviceStats, error)
 	// if err != nil {
 	// 	return nil, err
 	// }
-	c.stuckCFS.Lock()
-	defer c.stuckCFS.Unlock()
+	stuckCFS.Lock()
+	defer stuckCFS.Unlock()
+	log.Infof("%d container fs will be exported", len(containerFsList))
 	stats := []blockdeviceStats{}
-	for _, containerfs := range c.containerFs {
+	for _, containerfs := range containerFsList {
 		buf := new(syscall.Statfs_t)
 		err := syscall.Statfs(rootfsFilePath(containerfs.MountPoint), buf)
 		if err != nil {
-			log.Debugf("Error on statfs() system call for %q: %s", rootfsFilePath(containerfs.MountPoint), err)
+			log.Infof("Error on statfs() system call for %q: %s", rootfsFilePath(containerfs.MountPoint), err)
 			continue
 		}
 
