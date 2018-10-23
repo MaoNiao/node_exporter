@@ -21,7 +21,7 @@ import (
 	"time"
 	//"regexp"
 	"github.com/prometheus/client_golang/prometheus"
-	//"gopkg.in/alecthomas/kingpin.v2"
+	"gopkg.in/alecthomas/kingpin.v2"
 )
 
 // Arch-dependent implementation must define:
@@ -40,6 +40,8 @@ var (
 	// 	"Regexp of filesystem types to ignore for blockdevice collector.",
 	// ).Default(defIgnoredFSTypes).String()
 
+	hostProcPath = kingpin.Flag("collector.procpath","mount the host directory, default /proc.").Default("/proc").String()
+	collectorTime = kingpin.Flag("collector.containersTime","the interval for collecting containerList.").Default("10").Int64()
 	blockdeviceLabelNames = []string{"podName", "namespace", "containerId", "containerName", "containerImage", "pid"}
 )
 
@@ -60,10 +62,10 @@ type blockdeviceStats struct {
 }
 
 var (
-	containerFsList                   []ContainerFS
+	containerFsList               []ContainerFS
 	stuckCFS                      sync.Mutex
 )
-
+//init时开启多线程收集容器信息，并注册blockdeviceCollector
 func init() {
 	go func(){
 		t := time.NewTimer(0)
@@ -79,8 +81,8 @@ func init() {
 					stuckCFS.Unlock()
 					log.Infof("%d container fs loaded", len(gacfs))
 				}
-
-				t.Reset(time.Second * 10)
+				kingpin.Parse()
+				t.Reset(time.Second * time.Duration(*collectorTime))
 			}
 		}
 	}()

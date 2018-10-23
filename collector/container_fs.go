@@ -31,7 +31,7 @@ type ContainerFS struct {
 }
 
 func GetAllContainerFS() (cfs []ContainerFS, err error) {
-	dockerCli, err := client.NewEnvClient()
+	dockerCli, err := client.NewClientWithOpts(client.WithVersion("v1.24"))
 	if err != nil {
 		log.Debugf("docker client start failed: %s", err)
 		return
@@ -53,7 +53,7 @@ func GetAllContainerFS() (cfs []ContainerFS, err error) {
 		containerlabels := containerJson.Config.Labels
 
 		cfs = append(cfs, ContainerFS{
-			MountPoint:     fmt.Sprintf("/proc/%d/root", containerJson.State.Pid),
+			MountPoint:     fmt.Sprintf("%s/%d/root", *hostProcPath, containerJson.State.Pid),
 			ContainerImage: containerJson.Image,
 			ContainerId:    containerJson.ID,
 			ContainerName:  containerJson.Name,
