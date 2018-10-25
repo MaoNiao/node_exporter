@@ -28,6 +28,7 @@ func (c *blockdeviceCollector) GetBlockDeviceStats() ([]blockdeviceStats, error)
 	// if err != nil {
 	// 	return nil, err
 	// }
+	//添加互斥锁，同一时间只有一用户对containerFsList进行读写
 	stuckCFS.Lock()
 	defer stuckCFS.Unlock()
 	log.Infof("%d container fs will be exported", len(containerFsList))

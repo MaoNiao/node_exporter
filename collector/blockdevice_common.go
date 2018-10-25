@@ -76,6 +76,7 @@ func init() {
 				if err != nil {
 					panic(err)
 				} else {
+					//添加互斥锁，同一时间只有一用户对containerFsList进行读写
 					stuckCFS.Lock()
 					containerFsList = gacfs
 					stuckCFS.Unlock()
